@@ -1,0 +1,15 @@
+# 忽略 Python / IDE 产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# 本地数据库
+*.db
+data/
+
+# 系统文件
+.DS_Store
+.gitroot
