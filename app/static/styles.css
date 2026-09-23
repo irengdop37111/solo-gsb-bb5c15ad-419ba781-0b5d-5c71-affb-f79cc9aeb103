@@ -239,6 +239,97 @@ tr.row-skipped { background: rgba(239,91,107,.06); }
   .panel { height: auto; max-height: none; }
 }
 
+/* ---------- 跨场景共享资源占用核查 ---------- */
+.modal-cc { width: min(1080px, 100%); max-height: 94vh; }
+.modal-body-cc { padding: 12px 16px; overflow-y: auto; flex: 1; min-height: 0; }
+.cc-section { margin-bottom: 14px; }
+.cc-section h3 {
+  margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted);
+}
+.cc-scenario-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px; max-height: 190px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+  background: var(--panel-2);
+}
+.cc-scenario-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 8px; border-radius: 6px; cursor: pointer;
+  background: rgba(255,255,255,.03);
+}
+.cc-scenario-item:hover { background: rgba(79,140,255,.12); }
+.cc-scenario-item b { font-size: 12px; }
+.cc-scenario-item .hint { font-size: 11px; margin-left: auto; white-space: nowrap; }
+.cc-cap-actions { display: flex; gap: 8px; }
+.cc-run-row { display: flex; align-items: center; gap: 12px; }
+#ccBtnRun { padding: 8px 20px; font-size: 14px; }
+.cc-ok { color: var(--ok); }
+.cc-err { color: #ff9aa5; }
+
+/* 结果区 */
+.cc-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.cc-chip {
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: #27406e; color: #b9d4ff; white-space: nowrap;
+}
+.cc-chip-mini { padding: 1px 8px; font-size: 11px; }
+.cc-chip-ok { background: #1f4d38; color: #78e0a8; }
+.cc-chip-warn { background: #4a3a17; color: #ffd27a; }
+.cc-chip-bad { background: #5c2630; color: #ff9aa5; }
+
+.cc-warnings {
+  background: #2c2617; border: 1px solid #5c4c24; border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 10px; font-size: 12px; color: #ffd9a0;
+}
+.cc-warnings ul { margin: 6px 0 0; padding-left: 18px; }
+.cc-warnings li { margin: 3px 0; }
+
+.cc-scenario-status { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cc-scn-card {
+  border: 1px solid var(--border); border-radius: 8px;
+  background: rgba(255,255,255,.02); padding: 6px 10px;
+}
+.cc-scn-card.is-warn { border-color: #5c4c24; background: rgba(245,166,35,.05); }
+.cc-scn-card summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 12px; list-style: none;
+}
+.cc-scn-card summary::-webkit-details-marker { display: none; }
+.cc-scn-card .hint { margin-left: auto; font-size: 11px; }
+.cc-status-tag {
+  font-size: 10px; padding: 1px 8px; border-radius: 10px; color: #fff; flex: none;
+  background: var(--muted);
+}
+.cc-status-ok { background: #1f7a52; }
+.cc-status-warn { background: #b07a18; }
+.cc-status-bad { background: #b03546; }
+.cc-unscheduled { margin-top: 6px; font-size: 12px; color: #ffd27a; }
+.cc-unscheduled b { color: #ffd27a; margin: 0 2px; }
+.cc-conf-list { margin: 6px 0 2px; padding-left: 18px; font-size: 12px; color: var(--muted); }
+.cc-conf-type {
+  font-size: 10px; padding: 0 6px; border-radius: 8px;
+  background: #5c2630; color: #ffc3cb;
+}
+.cc-no-overload {
+  background: #122018; border: 1px solid #274d38; color: #9fdcbc;
+  border-radius: 8px; padding: 10px 14px; font-size: 13px;
+}
+
+.cc-overload {
+  border: 1px solid #5c3040; border-radius: 8px;
+  background: rgba(239,91,107,.05); padding: 10px 12px; margin-bottom: 10px;
+}
+.cc-overload-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cc-ov-index {
+  font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace;
+}
+.cc-overload-head .hint { margin-left: auto; font-size: 11px; }
+.cc-overload-scns { margin: 6px 0; font-size: 12px; }
+.cc-task-table td { border-bottom: 1px solid rgba(255,255,255,.05); padding: 4px 6px; }
+.cc-task-table .cc-mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; white-space: nowrap; }
+tr.cc-row-peak td { background: rgba(239,91,107,.12); }
+
 /* ---------- 模板工作台弹窗 ---------- */
 .modal-mask {
   position: fixed; inset: 0; z-index: 50;

@@ -18,8 +18,9 @@ from .models import (
     TemplatePreviewIn,
     TemplateInstantiateIn,
     ExecutionRecordsIn,
+    CrossCheckIn,
 )
-from . import scheduler, templating, execution
+from . import scheduler, templating, execution, cross_check
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("MW_DATA_DIR", "/data"))
@@ -275,6 +276,54 @@ def put_execution(scenario_id: int, body: ExecutionRecordsIn) -> dict:
         )
 
     return {"scenario_id": scenario_id, "saved": len(records), "updated_at": now}
+
+
+# ---------------------------------------------------------------------------
+# 跨场景共享资源占用核查（只读：只 SELECT 场景并内存计算，不写任何表）
+# ---------------------------------------------------------------------------
+
+@app.post("/api/cross-check")
+def cross_check_scenarios(req: CrossCheckIn) -> dict:
+    """对至少两个已保存场景分别排程，扫描共享资源合计超限的连续时段。"""
+    unique_ids = list(dict.fromkeys(req.scenario_ids))
+    if len(unique_ids) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="请至少选择两个场景进行跨场景共享资源占用核查",
+        )
+
+    capacities: dict[str, float] = {}
+    for rname, cap in req.capacities.items():
+        name = str(rname).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="共享资源名称不能为空")
+        try:
+            cap = float(cap)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail=f"共享资源 {name} 的总容量必须是数字")
+        if cap <= 0:
+            raise HTTPException(status_code=422, detail=f"共享资源 {name} 的总容量必须大于 0")
+        capacities[name] = cap
+    if not capacities:
+        raise HTTPException(status_code=422, detail="请至少输入一项共享资源及其总容量")
+
+    with get_db() as conn:
+        rows = [
+            conn.execute(
+                "SELECT id, name, data FROM scenarios WHERE id = ?", (sid,)
+            ).fetchone()
+            for sid in unique_ids
+        ]
+    missing = [sid for sid, row in zip(unique_ids, rows) if row is None]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "部分场景不存在或已被删除", "missing_scenario_ids": missing},
+        )
+
+    saved = [{"id": r["id"], "name": r["name"], "data": json.loads(r["data"])}
+             for r in rows]
+    return cross_check.cross_check(saved, capacities)
 
 
 # ---------------------------------------------------------------------------

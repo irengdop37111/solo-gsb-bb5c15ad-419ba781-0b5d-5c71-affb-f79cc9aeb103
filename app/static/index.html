@@ -18,6 +18,7 @@
       <button id="btnLoad" class="btn">↺ 恢复</button>
       <button id="btnDelete" class="btn btn-danger" title="删除当前场景">🗑</button>
       <button id="btnExport" class="btn btn-primary">⬇ 导出 JSON</button>
+      <button id="btnCrossCheck" class="btn">🔀 跨场景资源核查</button>
       <button id="btnTemplates" class="btn">🧩 场景模板</button>
       <button id="btnSample" class="btn">示例</button>
     </div>
@@ -158,6 +159,61 @@
     </div>
   </div>
 
+  <!-- 跨场景共享资源占用核查 -->
+  <div id="ccModal" class="modal-mask hidden">
+    <div class="modal modal-cc">
+      <div class="modal-head">
+        <b>🔀 跨场景共享资源占用核查 <span class="hint" style="font-weight:400">（只读，不改动场景与执行记录）</span></b>
+        <div class="modal-head-actions">
+          <button id="ccBtnClose" class="btn btn-small">✕ 关闭</button>
+        </div>
+      </div>
+
+      <div class="modal-body-cc">
+        <div class="cc-section">
+          <h3>① 选择至少两个已保存场景</h3>
+          <div id="ccScenarioList" class="cc-scenario-list">
+            <span class="hint">加载中…</span>
+          </div>
+        </div>
+
+        <div class="cc-section">
+          <h3>② 输入共享资源总容量 <span class="hint">各场景仍按各自容量独立排程；此处仅用于跨场景合计核查</span></h3>
+          <table class="mini-table" id="ccResourceTable">
+            <thead><tr><th>共享资源</th><th>总容量</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="cc-cap-actions">
+            <button id="ccBtnAddResource" class="btn btn-small">＋ 资源</button>
+            <button id="ccBtnFillResources" class="btn btn-small">⤓ 用所选场景内资源名填充</button>
+          </div>
+        </div>
+
+        <div class="cc-section cc-run-row">
+          <button id="ccBtnRun" class="btn btn-primary">🔍 开始核查</button>
+          <span id="ccRunHint" class="hint"></span>
+        </div>
+
+        <div id="ccError" class="exec-form-error hidden"></div>
+
+        <div class="cc-section">
+          <h3>③ 核查结果</h3>
+          <div id="ccSummary" class="cc-summary hidden"></div>
+          <div id="ccWarnings" class="cc-warnings hidden"></div>
+          <div id="ccScenarioStatus" class="cc-scenario-status"></div>
+          <div id="ccResult" class="cc-result">
+            <span class="hint">选择场景并输入共享资源总容量后，点击「开始核查」。占用按半开区间 [开始, 结束) 汇总：一个任务结束与另一个开始同时发生不算重叠。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot hint">
+        核查对每个场景独立计算计划后只读汇总；场景计划不可行时展示诊断并跳过未排定任务，
+        <b>缺失占用不会被当作无冲突</b>。
+      </div>
+    </div>
+  </div>
+
   <!-- 场景模板工作台 -->
   <div id="tplModal" class="modal-mask hidden">
     <div class="modal">
@@ -287,6 +343,7 @@
   </div>
 
   <script src="/static/templates.js"></script>
+  <script src="/static/cross_check.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

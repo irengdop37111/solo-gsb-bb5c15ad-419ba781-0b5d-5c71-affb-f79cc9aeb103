@@ -13,6 +13,12 @@
 **开始偏差**（早/晚多少分钟）、**时长偏差**（提前结束/超时）与**未执行项原因**。
 缺时间、结束早于开始、引用无效、缺漏或重复都会**整次拒绝保存**，不产生部分数据。
 
+**跨场景共享资源占用核查**：在页面勾选**至少两个已保存场景**并输入**共享资源总容量**，
+后端对各场景**分别独立排程**，把排定任务的资源占用汇总为**半开时间区间** `[开始, 结束)`
+（一个任务结束与另一个开始同时发生不算重叠），扫描时间端点找出合计超限的**连续时段**，
+列出资源、峰值（与超出量、峰值时刻）及涉及的场景与任务。场景计划不可行时显示诊断、
+**跳过未排定任务且不把缺失占用当作无冲突**。核查全程只读，不改动场景或实际执行记录。
+
 - 后端：FastAPI + SQLite（标准库 `sqlite3`，零额外 ORM 依赖）
 - 前端：原生 HTML / CSS / JavaScript（Canvas 绘制甘特图，无任何前端构建步骤）
 - 部署：单镜像 Docker / docker compose 一键启动
@@ -33,7 +39,8 @@ docker compose up -d --build
 
 打开页面后：左侧编辑维护窗口/资源/任务/依赖，右侧即时排程；顶栏可保存场景，
 保存并恢复后在右侧底部「**📋 实际执行记录**」登记实际执行情况与偏差对比，
-顶栏「🧩 场景模板」进入模板工作台。
+顶栏「🧩 场景模板」进入模板工作台，「**🔀 跨场景资源核查**」对多个已保存场景做
+共享资源合计超限核查。
 
 停止：
 
@@ -163,7 +170,45 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 
 执行记录持久化在 SQLite `execution_records` 表（主键 `场景 id + 任务 id`）。
 
-### 6. JSON 导出
+### 6. 跨场景共享资源占用核查（只读）
+
+点击顶栏「**🔀 跨场景资源核查**」打开核查弹窗，三步操作：
+
+1. **选择至少两个已保存场景**（复选框，可勾选任意多个；按选择顺序核查）；
+2. **输入共享资源总容量**：逐行填写资源名与总容量（支持小数），也可点
+   「**⤓ 用所选场景内资源名填充**」自动汇总所选场景出现过的资源名（默认取同名容量最大值），
+   再按实际共享情况修改；
+3. 点「**🔍 开始核查**」。
+
+后端对每个场景**按其自身的窗口、资源容量、依赖与禁排期分别独立计算计划**
+（不修改任何已保存数据），然后：
+
+- 把**排定**任务对共享资源的占用表示为**半开区间** `[start, end)` 并跨场景汇总；
+  **一个任务结束与另一个任务开始发生在同一时刻不构成重叠**（端点处先释放后占用）；
+- 对每种给定总容量的共享资源做**时间端点扫描**，把相邻的超限微区间合并为
+  **连续超限时段**，按时间升序输出，每个时段给出：
+  - **资源**、**总容量**、时段起止与持续时长；
+  - **峰值**合计占用、**峰值时刻**与**超出量**（峰值 − 容量）；
+  - **涉及的场景**与**任务清单**（任务所属场景、计划时段、占用量；
+    `▲` 标记峰值时刻仍在占用的任务）。
+
+**场景计划不可行 / 输入非法时的处理（不把缺失占用当作无冲突）**：
+
+- 每个场景在结果中给出独立状态卡：**计划可行** / **部分排程 x/y** / **计划失败**，
+  可展开查看该场景的全部冲突诊断（复用排程器的冲突类型）与未排定任务清单；
+- **未排定任务一律跳过，不计入占用合计**，同时在顶部黄色「诊断与跳过说明」中逐条提示
+  哪些任务因未排程被跳过、其潜在占用未计入；
+- 场景数据无法求解（如窗口倒置）时标记「计划失败」并给出错误信息，
+  其余场景的核查照常进行；
+- 只要存在跳过 / 失败 / 未提供容量的资源，汇总条即显示
+  「⚠ 存在跳过 / 未核查项，结果不能视为完全无冲突」（`stats.fully_checked=false`）；
+- 任务占用了**未提供共享总容量**的资源时，该资源列入 `unchecked_resources`
+  并给出警告；填了容量但没有任何任务使用的资源列入 `unused_resources`。
+
+> 核查为**只读**操作：仅 SELECT 场景并在内存中计算，不写场景、不写执行记录、
+> 不产生任何副作用；各场景计划也完全独立，互不挤占资源。
+
+### 7. JSON 导出
 
 「⬇ 导出 JSON」会下载 `maintenance-schedule-<时间戳>.json`（模板实例则为
 `maintenance-template-instance-<时间戳>.json`），内容同时包含：
@@ -182,7 +227,7 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 }
 ```
 
-### 7. 场景模板（含变量）
+### 8. 场景模板（含变量）
 
 点击顶栏「**🧩 场景模板**」打开模板工作台，左右两栏：左边定义模板，右边输入参数 → 预览 → 实例化。
 
@@ -270,6 +315,7 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 | DELETE | `/api/scenarios/{id}` | 删除场景（其执行记录在同一事务级联清理） |
 | GET | `/api/scenarios/{id}/execution` | 读取场景的实际执行记录（按任务顺序，含 `complete` 标记） |
 | PUT | `/api/scenarios/{id}/execution` | 整批保存执行记录 `{records:[…]}`；校验不过返回 422 + 全部 `errors`，不写入部分数据 |
+| POST | `/api/cross-check` | 跨场景共享资源占用核查 `{scenario_ids:[…≥2], capacities:{资源:总容量}}`（只读）；选择不足 / 容量非法 / 场景缺失返回 422 |
 | GET | `/api/templates` | 模板列表 |
 | POST | `/api/templates` | 新建 / 同名更新模板 `{name, data}`（保存前做结构校验） |
 | GET | `/api/templates/{id}` | 获取模板（含完整 data） |
@@ -320,6 +366,44 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
               "errors": [ { "node_id": "b", "message": "任务 b 的实际结束时间不能早于实际开始时间" } ] } }
 ```
 
+跨场景核查请求体（`POST /api/cross-check`，至少两个 `scenario_ids`）：
+
+```json
+{ "scenario_ids": [12, 18, 21], "capacities": { "DBA": 1, "网络组": 2 } }
+```
+
+成功响应（200；**只读**）：
+
+```json
+{
+  "capacities": { "DBA": 1 },
+  "scenarios": [
+    { "id": 12, "name": "核心库升级", "planned": true, "error": null,
+      "feasible": true, "total": 4, "scheduled": 4, "fully_scheduled": true,
+      "unscheduled": [], "conflicts": [] }
+  ],
+  "overloads": [
+    { "resource": "DBA", "capacity": 1,
+      "start": "2026-09-24T01:00", "end": "2026-09-24T02:00",
+      "start_label": "09-24 01:00", "end_label": "09-24 02:00", "duration_minutes": 60,
+      "peak": 2, "peak_at": "2026-09-24T01:00", "peak_at_label": "09-24 01:00", "excess": 1,
+      "involved_scenarios": [ { "id": 12, "name": "核心库升级" }, { "id": 18, "name": "中间件补丁" } ],
+      "tasks": [
+        { "scenario_id": 12, "scenario_name": "核心库升级", "node_id": "db", "node_name": "主备切换",
+          "start": "2026-09-24T01:00", "end": "2026-09-24T02:00",
+          "start_label": "09-24 01:00", "end_label": "09-24 02:00", "amount": 1, "at_peak": true }
+      ] }
+  ],
+  "warnings": [ "场景「…」有 1 个任务未排程（…），核查已跳过这些任务，其潜在占用未计入合计" ],
+  "unchecked_resources": [ { "resource": "存储组", "scenarios": [ { "id": 21, "name": "…" } ], "task_count": 2 } ],
+  "unused_resources": [],
+  "stats": { "scenario_count": 3, "resource_count": 2, "overload_count": 1, "fully_checked": false }
+}
+```
+
+> 半开区间语义：占用区间为 `[start, end)`，端点处结束事件先于开始事件处理，
+> 因此首尾相接的两个任务合计不会瞬时超限。
+
 模板请求体示例（`POST /api/templates/preview`）：
 
 ```json
@@ -366,17 +450,21 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 ├── app/
 │   ├── main.py            # FastAPI：API、SQLite（scenarios/templates/execution_records）、静态托管、导出
 │   ├── scheduler.py       # DAG 环检测 / 拓扑排序 / 资源+禁排期排程
+│   ├── cross_check.py     # 跨场景共享资源核查：半开区间占用汇总 + 端点扫描连续超限时段
 │   ├── execution.py       # 实际执行记录校验（缺漏/重复/无效引用/缺时间/结束早于开始/缺原因）
 │   ├── templating.py      # 场景模板：表达式词法/语法、变量解析、锚点环检测、时间越界校验
 │   ├── models.py          # Pydantic 模型
 │   └── static/
-│       ├── index.html     # 编辑器 + 结果区 + 执行记录面板/弹窗 + 模板工作台弹窗
+│       ├── index.html     # 编辑器 + 结果区 + 执行记录面板/弹窗 + 模板工作台 + 跨场景核查弹窗
 │       ├── app.js         # 原生 JS：表格编辑、Canvas 甘特图、拖拽、场景、执行记录、导出
+│       ├── cross_check.js # 跨场景核查：场景勾选、共享容量录入、诊断/超限结果渲染
 │       ├── templates.js   # 模板工作台：变量编辑、参数预览、迷你甘特、实例化
 │       └── styles.css
 ├── test_scheduler.py      # 排程核心测试（53 项断言，无需第三方库）
 ├── test_execution.py      # 执行记录校验与 API 测试（39 项断言，需 fastapi/httpx）
+├── test_cross_check.py    # 跨场景核查纯函数与 API 测试（62 项断言，需 fastapi/httpx）
 ├── test_frontend_exec.js  # 执行记录前端流程测试（25 项断言，仅需 node）
+├── test_frontend_crosscheck.js # 跨场景核查前端流程测试（41 项断言，仅需 node）
 ├── test_templating.py     # 模板引擎测试（47 项断言，无需第三方库）
 ├── requirements.txt
 ├── Dockerfile
@@ -389,8 +477,10 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 pip install -r requirements.txt   # 测试仅依赖 fastapi（含 pydantic）；API 测试另需 httpx
 python test_scheduler.py
 python test_execution.py
+python test_cross_check.py
 python test_templating.py
 node test_frontend_exec.js        # 前端执行记录登记 / 校验 / 偏差展示流程
+node test_frontend_crosscheck.js  # 前端跨场景核查：选择 / 容量 / 诊断 / 超限展示
 ```
 
 ---
