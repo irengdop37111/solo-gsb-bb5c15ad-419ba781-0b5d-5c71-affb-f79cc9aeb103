@@ -18,8 +18,9 @@ from .models import (
     TemplatePreviewIn,
     TemplateInstantiateIn,
     ExecutionRecordsIn,
+    ResourceAuditIn,
 )
-from . import scheduler, templating, execution
+from . import scheduler, templating, execution, resource_audit
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("MW_DATA_DIR", "/data"))
@@ -180,6 +181,40 @@ def delete_scenario(scenario_id: int) -> dict:
         # 同一事务清理执行记录，不留孤儿数据
         conn.execute("DELETE FROM execution_records WHERE scenario_id = ?", (scenario_id,))
     return {"deleted": scenario_id}
+
+
+# ---------------------------------------------------------------------------
+# 跨场景共享资源占用核查（只读：仅 SELECT，不改动场景与执行记录）
+# ---------------------------------------------------------------------------
+
+@app.post("/api/resource-audit")
+def resource_audit_check(req: ResourceAuditIn) -> dict:
+    """对至少两个已保存场景做共享资源占用核查。
+
+    分别计算各场景计划，把排定任务的资源占用汇总为半开时间区间，
+    扫描时间端点找出合计超过共享总容量的连续时段（资源 / 峰值 /
+    涉及场景与任务）；未排定任务的占用不计入并以 warnings 标注。
+    """
+    ids = list(dict.fromkeys(req.scenario_ids))  # 去重并保持请求顺序
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, name, data FROM scenarios WHERE id IN (%s)"
+            % ",".join("?" * len(ids)),
+            ids,
+        ).fetchall()
+    found = {row["id"]: row for row in rows}
+    missing = [sid for sid in ids if sid not in found]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"场景不存在：{missing}")
+    scenarios = [
+        {"id": sid, "name": found[sid]["name"],
+         "data": json.loads(found[sid]["data"])}
+        for sid in ids
+    ]
+    try:
+        return resource_audit.audit(scenarios, req.shared_capacities)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 # ---------------------------------------------------------------------------

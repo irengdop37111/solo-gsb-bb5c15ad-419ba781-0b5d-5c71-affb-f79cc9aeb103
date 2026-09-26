@@ -353,3 +353,54 @@ tr.row-skipped { background: rgba(239,91,107,.06); }
   border-right: 1px dashed rgba(239,91,107,.6);
 }
 
+/* ---------- 跨场景共享资源核查 ---------- */
+.modal-audit { width: min(1060px, 100%); max-height: 92vh; }
+.audit-scn-list {
+  max-height: 220px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+  background: #10182b;
+}
+.audit-scn-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,.05);
+  cursor: pointer; font-size: 12px;
+}
+.audit-scn-item:last-child { border-bottom: none; }
+.audit-scn-item input { flex: none; }
+.audit-scn-name { font-weight: 600; }
+.audit-scn-item .hint { margin-left: auto; white-space: nowrap; }
+.audit-result { font-size: 12px; }
+.audit-banner {
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-weight: 600;
+}
+.audit-banner.ok { background: #122018; border: 1px solid #274d38; color: #78e0a8; }
+.audit-banner.warn { background: #2c2617; border: 1px solid #5c4c24; color: #ffd27a; }
+.audit-banner.err { background: #2a1a22; border: 1px solid #5c3040; color: #ff9aa5; }
+.audit-warn-box {
+  background: #2c2617; border: 1px solid #5c4c24; border-radius: 8px;
+  padding: 8px 12px; margin-bottom: 8px; color: #ffd27a;
+}
+.audit-warn-box ul { margin: 6px 0 0; padding-left: 18px; }
+.audit-warn-box li { margin: 2px 0; color: #f0dfae; }
+.audit-h {
+  margin: 12px 0 6px; font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.audit-conflict-card {
+  background: rgba(239,91,107,.07); border: 1px solid rgba(239,91,107,.4);
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+}
+.audit-conflict-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.audit-peak { margin-left: auto; color: #ffc3cb; font-size: 12px; }
+.audit-scn-status {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; margin-bottom: 5px;
+  background: rgba(255,255,255,.03); border-radius: 6px;
+}
+.audit-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; align-self: center; }
+.audit-dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.audit-dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.audit-diag { flex-basis: 100%; margin: 4px 0 0; padding-left: 18px; color: #ffc3cb; }
+.audit-diag li { margin: 2px 0; }
+.audit-unsched { flex-basis: 100%; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; color: var(--muted); }
+

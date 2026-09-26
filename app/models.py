@@ -44,3 +44,9 @@ class ExecutionRecordIn(BaseModel):
 class ExecutionRecordsIn(BaseModel):
     """一次提交整场景全部任务的执行记录（每任务恰好一条）。"""
     records: list[ExecutionRecordIn]
+
+
+class ResourceAuditIn(BaseModel):
+    """跨场景共享资源占用核查：至少两个已保存场景 + 共享资源总容量表。"""
+    scenario_ids: list[int] = Field(min_length=2)
+    shared_capacities: dict[str, float] = Field(min_length=1)

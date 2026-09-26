@@ -13,6 +13,12 @@
 **开始偏差**（早/晚多少分钟）、**时长偏差**（提前结束/超时）与**未执行项原因**。
 缺时间、结束早于开始、引用无效、缺漏或重复都会**整次拒绝保存**，不产生部分数据。
 
+**跨场景共享资源占用核查**：选择至少两个已保存场景并输入共享资源总容量，
+后端分别重算各场景计划，把排定任务的资源占用汇总为**半开时间区间**，
+扫描时间端点找出**合计超限的连续时段**，列出资源、峰值与涉及的场景/任务
+（一个任务结束与另一个开始同时发生不算重叠）；场景计划不可行时给出诊断、
+跳过未排定任务并显式提示覆盖缺口。核查**只读**，不改动场景与执行记录。
+
 - 后端：FastAPI + SQLite（标准库 `sqlite3`，零额外 ORM 依赖）
 - 前端：原生 HTML / CSS / JavaScript（Canvas 绘制甘特图，无任何前端构建步骤）
 - 部署：单镜像 Docker / docker compose 一键启动
@@ -33,7 +39,7 @@ docker compose up -d --build
 
 打开页面后：左侧编辑维护窗口/资源/任务/依赖，右侧即时排程；顶栏可保存场景，
 保存并恢复后在右侧底部「**📋 实际执行记录**」登记实际执行情况与偏差对比，
-顶栏「🧩 场景模板」进入模板工作台。
+顶栏「🧩 场景模板」进入模板工作台，「🔗 资源核查」做跨场景共享资源占用核查。
 
 停止：
 
@@ -232,6 +238,33 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 时长 / 固定时间 / 锚点时间 / 禁排期）、`issues`（校验问题）、`scenario`（实例场景）
 与 `result`（排程结果）。
 
+### 8. 跨场景共享资源占用核查
+
+多个维护场景若共用同一批人员/设备资源，单场景各自可行不代表并行执行时资源够用。
+点击顶栏「**🔗 资源核查**」打开核查弹窗：
+
+1. **① 选择参与核查的场景**（至少 2 个，从已保存场景中勾选）；
+2. **② 共享资源总容量**：逐资源填写跨场景合计不得超出的总容量；
+   「⇩ 从所选场景预填」自动读取所选场景的资源定义，按各场景最大值预填（可修改，
+   不覆盖已填行）；只有列在此处的资源参与核查；
+3. **③ 开始核查**：后端分别重算各场景计划，把**排定任务**的资源占用汇总为
+   **半开时间区间** `[start, end)`，扫描全部时间端点，把合计占用超过总容量的
+   相邻基本段合并为**连续超限时段**输出。
+
+结果区展示：
+
+- **结论横幅**：红色＝发现超限时段；黄色＝已排定任务未超限但存在未排定任务
+  （覆盖缺口，不能视为完全无冲突）；绿色＝全部排定且合计均在容量内；
+- **超限连续时段**：资源、起止时间、**峰值/容量**，以及涉及的**场景与任务**
+  （含各自占用量与计划时段）；
+- **各场景计划**：可行/不可行状态、排定进度；不可行场景列出排程诊断与未排定任务。
+
+> 语义与边界：
+> - **半开区间**：一个任务结束与另一个任务开始同时发生**不算重叠**；
+> - 场景计划不可行时，**未排定任务的占用不计入合计**，并以警告单独列出
+>   （不把缺失占用当作无冲突）；
+> - 核查为**只读**操作：仅重算计划并汇总，不修改场景数据与实际执行记录。
+
 ---
 
 ## 四、排程算法说明
@@ -270,6 +303,7 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 | DELETE | `/api/scenarios/{id}` | 删除场景（其执行记录在同一事务级联清理） |
 | GET | `/api/scenarios/{id}/execution` | 读取场景的实际执行记录（按任务顺序，含 `complete` 标记） |
 | PUT | `/api/scenarios/{id}/execution` | 整批保存执行记录 `{records:[…]}`；校验不过返回 422 + 全部 `errors`，不写入部分数据 |
+| POST | `/api/resource-audit` | 跨场景共享资源占用核查（只读）：`{scenario_ids:[≥2], shared_capacities:{…}}`，返回超限连续时段与各场景诊断 |
 | GET | `/api/templates` | 模板列表 |
 | POST | `/api/templates` | 新建 / 同名更新模板 `{name, data}`（保存前做结构校验） |
 | GET | `/api/templates/{id}` | 获取模板（含完整 data） |
@@ -357,6 +391,20 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 实例化（`POST /api/templates/instantiate`）在上述基础上增加 `"template_id"`（可选，
 不传则使用内联 `data`）与 `"name"`（实例场景名称），返回 `{id, name, data, result, resolved, issues}`。
 
+资源核查请求体（`POST /api/resource-audit`，只读）：
+
+```json
+{
+  "scenario_ids": [1, 2],
+  "shared_capacities": { "DBA": 2, "网络组": 1 }
+}
+```
+
+响应要点：`ok`（无超限时段）、`complete`（全部场景计划可行、核查覆盖所有任务）、
+`conflicts`（超限连续时段：资源 / 起止 / 峰值 / 容量 / 涉及场景与任务）、
+`scenarios`（各场景可行性与排程诊断、未排定任务）、`warnings`（覆盖缺口提示）、
+`stats`。场景 id 不存在返回 404；场景不足两个或容量表非法返回 422。
+
 ---
 
 ## 六、目录结构与测试
@@ -366,17 +414,21 @@ APP_PORT=9000 docker compose up -d --build   # 访问 http://localhost:9000
 ├── app/
 │   ├── main.py            # FastAPI：API、SQLite（scenarios/templates/execution_records）、静态托管、导出
 │   ├── scheduler.py       # DAG 环检测 / 拓扑排序 / 资源+禁排期排程
+│   ├── resource_audit.py  # 跨场景共享资源核查：逐场景排程 → 半开区间汇总 → 端点扫描超限时段
 │   ├── execution.py       # 实际执行记录校验（缺漏/重复/无效引用/缺时间/结束早于开始/缺原因）
 │   ├── templating.py      # 场景模板：表达式词法/语法、变量解析、锚点环检测、时间越界校验
 │   ├── models.py          # Pydantic 模型
 │   └── static/
-│       ├── index.html     # 编辑器 + 结果区 + 执行记录面板/弹窗 + 模板工作台弹窗
+│       ├── index.html     # 编辑器 + 结果区 + 执行记录面板/弹窗 + 模板工作台 + 资源核查弹窗
 │       ├── app.js         # 原生 JS：表格编辑、Canvas 甘特图、拖拽、场景、执行记录、导出
 │       ├── templates.js   # 模板工作台：变量编辑、参数预览、迷你甘特、实例化
+│       ├── audit.js       # 资源核查弹窗：场景多选、共享容量表、超限时段与诊断渲染
 │       └── styles.css
 ├── test_scheduler.py      # 排程核心测试（53 项断言，无需第三方库）
 ├── test_execution.py      # 执行记录校验与 API 测试（39 项断言，需 fastapi/httpx）
+├── test_resource_audit.py # 跨场景资源核查与 API 测试（52 项断言，需 fastapi/httpx）
 ├── test_frontend_exec.js  # 执行记录前端流程测试（25 项断言，仅需 node）
+├── test_frontend_audit.js # 资源核查前端流程测试（19 项断言，仅需 node）
 ├── test_templating.py     # 模板引擎测试（47 项断言，无需第三方库）
 ├── requirements.txt
 ├── Dockerfile
@@ -390,7 +442,9 @@ pip install -r requirements.txt   # 测试仅依赖 fastapi（含 pydantic）；
 python test_scheduler.py
 python test_execution.py
 python test_templating.py
+python test_resource_audit.py     # 跨场景共享资源占用核查
 node test_frontend_exec.js        # 前端执行记录登记 / 校验 / 偏差展示流程
+node test_frontend_audit.js       # 前端资源核查弹窗流程
 ```
 
 ---

@@ -19,6 +19,7 @@
       <button id="btnDelete" class="btn btn-danger" title="删除当前场景">🗑</button>
       <button id="btnExport" class="btn btn-primary">⬇ 导出 JSON</button>
       <button id="btnTemplates" class="btn">🧩 场景模板</button>
+      <button id="btnAudit" class="btn">🔗 资源核查</button>
       <button id="btnSample" class="btn">示例</button>
     </div>
   </header>
@@ -286,7 +287,69 @@
     </div>
   </div>
 
+  <!-- 跨场景共享资源占用核查 -->
+  <div id="auditModal" class="modal-mask hidden">
+    <div class="modal modal-audit">
+      <div class="modal-head">
+        <b>🔗 跨场景共享资源占用核查</b>
+        <div class="modal-head-actions">
+          <button id="auditBtnClose" class="btn btn-small">✕ 关闭</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- 左：选择场景 + 共享容量 -->
+        <div class="tpl-col tpl-col-left">
+          <div class="tpl-section">
+            <h3>① 选择参与核查的场景 <span class="hint">至少 2 个</span></h3>
+            <div id="auditScenarioList" class="audit-scn-list">
+              <span class="hint">载入中…</span>
+            </div>
+          </div>
+
+          <div class="tpl-section">
+            <h3>② 共享资源总容量 <span class="hint">跨场景合计不得超限</span></h3>
+            <table class="mini-table" id="auditCapTable">
+              <thead><tr><th>共享资源</th><th>总容量</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div class="form-row">
+              <button id="auditBtnAddCap" class="btn btn-small">＋ 资源</button>
+              <button id="auditBtnPrefill" class="btn btn-small"
+                title="读取所选场景的资源定义，按各场景最大值预填（不覆盖已修改的行）">
+                ⇩ 从所选场景预填
+              </button>
+            </div>
+            <p class="hint">只核查列在此处的资源；场景内其他资源的占用不参与合计。</p>
+          </div>
+
+          <div class="tpl-section">
+            <h3>③ 开始核查</h3>
+            <button id="auditBtnRun" class="btn btn-small btn-primary">🔍 核查共享资源占用</button>
+            <p class="hint">核查为只读操作：分别重算各场景计划并汇总占用，不会修改场景或执行记录。</p>
+          </div>
+        </div>
+
+        <!-- 右：核查结果 -->
+        <div class="tpl-col tpl-col-right">
+          <div class="tpl-section">
+            <h3>核查结果</h3>
+            <div id="auditResult" class="audit-result">
+              <span class="hint">选择场景并填写共享资源总容量后，点击「核查共享资源占用」。</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot hint">
+        半开区间语义：一个任务结束与另一个任务开始同时发生<b>不算重叠</b>；
+        场景计划不可行时，未排定任务的占用<b>不计入</b>合计，并以警告单独列出（不当作无冲突）。
+      </div>
+    </div>
+  </div>
+
   <script src="/static/templates.js"></script>
+  <script src="/static/audit.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
